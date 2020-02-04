@@ -38,8 +38,6 @@ func search() {
 }
 
 func send() {
-  customerId := "4628D531-83FB-4617-834A-0BE6878D2042"
-  apiKey := "wlZCJ9X67ATwZR3xom7iRELr03AOhjrsPoDcuus65pUQ1ict56cOax9mnc+x+O0znuGIQYx25j8jkwl+VXFUlA=="
 
   b := body{
     PhoneNumber:"4915175243414",
