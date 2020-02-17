@@ -2,11 +2,13 @@ package main
 
 import (
   "net/http"
+	"strings"
+	"errors"
 	"net/url"
-	"io/ioutil"
 	"bytes"
   "fmt"
-  "regexp"
+  "os"
+	"github.com/PuerkitoBio/goquery"
   "encoding/base64"
 )
 
@@ -18,32 +20,57 @@ type body struct {
 }
 
 func main() {
-	search()
+	if (search()) {
+		fmt.Println("found " + os.Getenv("TARGET"))
+
+		send()
+	}
 }
 
-func search() {
-  resp, err := http.Get("https://www.axs.com/venues/101921/ericsson-globe-stockholm-live-stockholm-tickets")
+func search() bool {
+  req, err := http.NewRequest("GET", os.Getenv("URL"), nil)
 	if err != nil {
 		panic(err)
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
+  req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:72.0) Gecko/20100101 Firefox/72.0")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "sv-SE,sv;q=0.8,en-US;q=0.5,en;q=0.3")
+	req.Header.Set("DNT", "1")
+	req.Header.Set("Connection", "keep-alive")
+
+	cli := http.Client{}
+	resp, err := cli.Do(req)
 	if err != nil {
 		panic(err)
 	}
 
-  re := regexp.MustCompile(`headliner`)
-	res := re.FindAllString(string(b), -1)
-	fmt.Println(res)
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	found := false
+
+	doc.Find(os.Getenv("CSS_PATH")).Each(func(i int, s *goquery.Selection) {
+		t := strings.ToLower(s.Text())
+		if strings.Contains(t, os.Getenv("TARGET")) {
+			found = true
+		}
+	})
+
+	return found
 }
 
 func send() {
+  customerId := ""
+  apiKey := ""
 
   b := body{
     PhoneNumber:"4915175243414",
-    Message:"haiii",
+    Message: os.Getenv("MESSAGE"),
     Type:"ARN",
-    Sender:"Snip",
+    Sender:"informer",
   }
 
   u := "https://rest-api.telesign.com/v1/messaging"
@@ -72,12 +99,7 @@ func send() {
 
   defer resp.Body.Close()
 
-  fmt.Println("response Status:", resp.Status)
-  fmt.Println("response Headers:", resp.Header)
-  body, _ := ioutil.ReadAll(resp.Body)
-  fmt.Println("response Body:", string(body))
-
-	if err != nil {
-		panic(err)
+	if resp.StatusCode != 200 {
+		panic(errors.New("invalid statuscode"))
 	}
 }
